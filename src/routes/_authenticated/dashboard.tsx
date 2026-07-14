@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import {
   Wallet,
   TrendingUp,
@@ -9,10 +11,13 @@ import {
   BarChart3,
   ArrowUpRight,
   ArrowDownLeft,
+  Loader2,
 } from "lucide-react";
 import { ClayCard } from "@/components/ClayCard";
 import { StatCard } from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
+import { categorizeTransactions } from "@/lib/categorize.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -41,6 +46,10 @@ const inr = (n: number) =>
   }).format(n);
 
 function DashboardPage() {
+  const queryClient = useQueryClient();
+  const categorizeFn = useServerFn(categorizeTransactions);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
+
   const { data, isLoading } = useQuery({
     queryKey: ["transactions", "dashboard"],
     queryFn: async () => {
@@ -50,6 +59,19 @@ function DashboardPage() {
         .order("transaction_date", { ascending: false });
       if (error) throw error;
       return (data ?? []) as Txn[];
+    },
+  });
+
+  const categorize = useMutation({
+    mutationFn: async () => categorizeFn(),
+    onMutate: () => setErrMsg(null),
+    onSuccess: (res) => {
+      toast.success(`Categorized ${res.updated} of ${res.total} transactions`);
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+    onError: (e: Error) => {
+      setErrMsg(e.message);
+      toast.error(e.message);
     },
   });
 
@@ -64,6 +86,17 @@ function DashboardPage() {
         new Date(t.transaction_date) >= monthStart,
     )
     .reduce((sum, t) => sum + Number(t.amount), 0);
+
+  const categoryTotals = new Map<string, number>();
+  for (const t of txns) {
+    if (t.transaction_type.toLowerCase() !== "debit") continue;
+    if (!t.category) continue;
+    categoryTotals.set(t.category, (categoryTotals.get(t.category) ?? 0) + Number(t.amount));
+  }
+  let topCategory: { name: string; total: number } | null = null;
+  for (const [name, total] of categoryTotals) {
+    if (!topCategory || total > topCategory.total) topCategory = { name, total };
+  }
 
   const recent = txns.slice(0, 10);
 
@@ -81,6 +114,31 @@ function DashboardPage() {
         </div>
       </header>
 
+      <button
+        type="button"
+        onClick={() => categorize.mutate()}
+        disabled={categorize.isPending}
+        className="clay-hover flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--clay-primary-shadow)] disabled:opacity-70"
+      >
+        {categorize.isPending ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Analyzing transactions…
+          </>
+        ) : (
+          <>
+            <Sparkles className="h-4 w-4" />
+            Categorize Transactions
+          </>
+        )}
+      </button>
+
+      {errMsg ? (
+        <ClayCard className="border border-destructive/30 bg-destructive/5">
+          <p className="text-sm text-destructive">{errMsg}</p>
+        </ClayCard>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-4">
         <StatCard
           label="Spending This Month"
@@ -91,11 +149,12 @@ function DashboardPage() {
         />
         <StatCard
           label="Top Category"
-          value="—"
-          hint="Not yet categorized"
+          value={topCategory ? topCategory.name : "—"}
+          hint={topCategory ? inr(topCategory.total) : "Not yet categorized"}
           icon={Tag}
           tone="success"
         />
+
         <div className="col-span-2">
           <StatCard
             label="Number of Transactions"
