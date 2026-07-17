@@ -12,11 +12,14 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { ClayCard } from "@/components/ClayCard";
 import { StatCard } from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { categorizeTransactions } from "@/lib/categorize.functions";
+import { generateInsights } from "@/lib/insights.functions";
+
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -48,7 +51,19 @@ const inr = (n: number) =>
 function DashboardPage() {
   const queryClient = useQueryClient();
   const categorizeFn = useServerFn(categorizeTransactions);
+  const insightsFn = useServerFn(generateInsights);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+
+  const insights = useQuery({
+    queryKey: ["insights"],
+    queryFn: async () => {
+      const res = await insightsFn();
+      return res.insights as string[];
+    },
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
 
   const { data, isLoading } = useQuery({
     queryKey: ["transactions", "dashboard"],
@@ -68,6 +83,8 @@ function DashboardPage() {
     onSuccess: (res) => {
       toast.success(`Categorized ${res.updated} of ${res.total} transactions`);
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["insights"] });
+
     },
     onError: (e: Error) => {
       setErrMsg(e.message);
@@ -271,16 +288,49 @@ function DashboardPage() {
       </ClayCard>
 
       <ClayCard className="space-y-3 bg-primary/5">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <Sparkles className="h-4.5 w-4.5" strokeWidth={2.2} />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Sparkles className="h-4.5 w-4.5" strokeWidth={2.2} />
+            </div>
+            <h2 className="text-base font-bold text-foreground">AI Insights</h2>
           </div>
-          <h2 className="text-base font-bold text-foreground">AI Insights</h2>
+          <button
+            type="button"
+            onClick={() => insights.refetch()}
+            disabled={insights.isFetching}
+            className="clay-hover flex items-center gap-1.5 rounded-xl bg-primary/15 px-3 py-1.5 text-xs font-semibold text-primary disabled:opacity-60"
+          >
+            {insights.isFetching ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            Refresh
+          </button>
         </div>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Your AI-generated insights will appear here
-        </p>
+        {insights.isLoading || insights.isFetching ? (
+          <p className="text-sm leading-relaxed text-muted-foreground">Generating insights…</p>
+        ) : insights.isError ? (
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Insights unavailable right now
+          </p>
+        ) : insights.data && insights.data.length > 0 ? (
+          <ul className="space-y-2">
+            {insights.data.map((line, i) => (
+              <li key={i} className="flex gap-2 text-sm leading-relaxed text-foreground">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Categorize transactions to see insights.
+          </p>
+        )}
       </ClayCard>
+
     </div>
   );
 }
