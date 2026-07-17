@@ -83,6 +83,8 @@ function DashboardPage() {
     onSuccess: (res) => {
       toast.success(`Categorized ${res.updated} of ${res.total} transactions`);
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["insights"] });
+
     },
     onError: (e: Error) => {
       setErrMsg(e.message);
