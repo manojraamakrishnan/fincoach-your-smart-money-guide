@@ -79,24 +79,23 @@ function DashboardPage() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  const isDebit = (t: Txn) => t.transaction_type.toLowerCase() === "debit";
+
   const monthSpend = txns
-    .filter(
-      (t) =>
-        t.transaction_type.toLowerCase() === "debit" &&
-        new Date(t.transaction_date) >= monthStart,
-    )
+    .filter((t) => isDebit(t) && new Date(t.transaction_date) >= monthStart)
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const categoryTotals = new Map<string, number>();
   for (const t of txns) {
-    if (t.transaction_type.toLowerCase() !== "debit") continue;
-    if (!t.category) continue;
+    if (!isDebit(t) || !t.category) continue;
     categoryTotals.set(t.category, (categoryTotals.get(t.category) ?? 0) + Number(t.amount));
   }
-  let topCategory: { name: string; total: number } | null = null;
-  for (const [name, total] of categoryTotals) {
-    if (!topCategory || total > topCategory.total) topCategory = { name, total };
-  }
+  const spendingCategories = Array.from(categoryTotals.entries())
+    .map(([name, total]) => ({ name, total }))
+    .sort((a, b) => b.total - a.total);
+
+  const topCategory = spendingCategories[0] ?? null;
+  const maxCategoryTotal = topCategory?.total ?? 0;
 
   const recent = txns.slice(0, 10);
 
