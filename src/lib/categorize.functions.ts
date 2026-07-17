@@ -21,8 +21,8 @@ export const categorizeTransactions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const geminiKey = process.env.Gemini;
-    if (!geminiKey) throw new Error("Gemini API key not configured");
+    const lovableKey = process.env.LOVABLE_API_KEY;
+    if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
 
     const { data: txns, error } = await supabase
       .from("transactions")
@@ -50,34 +50,47 @@ Rules:
 Transactions:
 ${list}`;
 
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json", temperature: 0 },
-        }),
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Lovable-API-Key": lovableKey,
       },
-    );
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      }),
+    });
 
     if (!resp.ok) {
       const body = await resp.text();
-      throw new Error(`Gemini API error [${resp.status}]: ${body}`);
+      if (resp.status === 429) throw new Error("Rate limit reached. Please try again in a moment.");
+      if (resp.status === 402) throw new Error("AI credits exhausted. Please add credits in your workspace.");
+      throw new Error(`AI Gateway error [${resp.status}]: ${body}`);
     }
 
     const json = await resp.json();
-    const text: string | undefined =
-      json?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ??
-      undefined;
-    if (!text) throw new Error("Empty response from Gemini");
+    const text: string | undefined = json?.choices?.[0]?.message?.content ?? undefined;
+    if (!text) throw new Error("Empty response from AI");
 
     let parsed: Array<{ transaction_id: string; category: string }>;
     try {
       const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
-      parsed = JSON.parse(cleaned);
-      if (!Array.isArray(parsed)) throw new Error("not an array");
+      const obj = JSON.parse(cleaned);
+      parsed = Array.isArray(obj)
+        ? obj
+        : Array.isArray(obj?.results)
+          ? obj.results
+          : Array.isArray(obj?.categorizations)
+            ? obj.categorizations
+            : Array.isArray(obj?.transactions)
+              ? obj.transactions
+              : (() => {
+                  const firstArr = Object.values(obj).find((v) => Array.isArray(v));
+                  if (Array.isArray(firstArr)) return firstArr as typeof parsed;
+                  throw new Error("not an array");
+                })();
     } catch {
       throw new Error("Failed to parse AI response as JSON. No changes made.");
     }
