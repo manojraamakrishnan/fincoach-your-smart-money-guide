@@ -79,24 +79,23 @@ function DashboardPage() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  const isDebit = (t: Txn) => t.transaction_type.toLowerCase() === "debit";
+
   const monthSpend = txns
-    .filter(
-      (t) =>
-        t.transaction_type.toLowerCase() === "debit" &&
-        new Date(t.transaction_date) >= monthStart,
-    )
+    .filter((t) => isDebit(t) && new Date(t.transaction_date) >= monthStart)
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const categoryTotals = new Map<string, number>();
   for (const t of txns) {
-    if (t.transaction_type.toLowerCase() !== "debit") continue;
-    if (!t.category) continue;
+    if (!isDebit(t) || !t.category) continue;
     categoryTotals.set(t.category, (categoryTotals.get(t.category) ?? 0) + Number(t.amount));
   }
-  let topCategory: { name: string; total: number } | null = null;
-  for (const [name, total] of categoryTotals) {
-    if (!topCategory || total > topCategory.total) topCategory = { name, total };
-  }
+  const spendingCategories = Array.from(categoryTotals.entries())
+    .map(([name, total]) => ({ name, total }))
+    .sort((a, b) => b.total - a.total);
+
+  const topCategory = spendingCategories[0] ?? null;
+  const maxCategoryTotal = topCategory?.total ?? 0;
 
   const recent = txns.slice(0, 10);
 
@@ -165,6 +164,46 @@ function DashboardPage() {
           />
         </div>
       </div>
+
+      <ClayCard className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-foreground">Spending Breakdown</h2>
+          <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">
+            Debit only
+          </span>
+        </div>
+
+        {isLoading ? (
+          <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
+            Loading…
+          </div>
+        ) : spendingCategories.length === 0 ? (
+          <div className="flex h-32 flex-col items-center justify-center gap-3 rounded-2xl bg-secondary/60 clay-inset">
+            <BarChart3 className="h-8 w-8 text-muted-foreground" strokeWidth={1.8} />
+            <p className="text-sm text-muted-foreground">No categorized spending yet</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {spendingCategories.map((c) => {
+              const pct = maxCategoryTotal > 0 ? (c.total / maxCategoryTotal) * 100 : 0;
+              return (
+                <div key={c.name} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-foreground">{c.name}</span>
+                    <span className="font-semibold tabular-nums text-foreground">{inr(c.total)}</span>
+                  </div>
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary/70">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </ClayCard>
 
       <ClayCard className="space-y-4">
         <div className="flex items-center justify-between">
