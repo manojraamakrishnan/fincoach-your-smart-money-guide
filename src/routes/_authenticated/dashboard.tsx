@@ -51,7 +51,19 @@ const inr = (n: number) =>
 function DashboardPage() {
   const queryClient = useQueryClient();
   const categorizeFn = useServerFn(categorizeTransactions);
+  const insightsFn = useServerFn(generateInsights);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+
+  const insights = useQuery({
+    queryKey: ["insights"],
+    queryFn: async () => {
+      const res = await insightsFn();
+      return res.insights as string[];
+    },
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
 
   const { data, isLoading } = useQuery({
     queryKey: ["transactions", "dashboard"],
