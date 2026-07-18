@@ -89,10 +89,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         property: "og:description",
         content:
-          "Understand your spending with AI-powered insights from your UPI statements.",
+          "FinCoach helps young salaried professionals in India understand their spending with AI-powered insights from UPI statements.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "FinCoach — AI Personal Finance Awareness" },
+      { name: "twitter:description", content: "FinCoach helps young salaried professionals in India understand their spending with AI-powered insights from UPI statements." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/0dec6ff7-443a-4ee7-81f2-4932c70bf18e/id-preview-5c5af01d--e045fbcf-24f9-4715-8699-0eddb958e9c6.lovable.app-1784352519087.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/0dec6ff7-443a-4ee7-81f2-4932c70bf18e/id-preview-5c5af01d--e045fbcf-24f9-4715-8699-0eddb958e9c6.lovable.app-1784352519087.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
