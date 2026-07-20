@@ -110,7 +110,7 @@ export const generateInsights = createServerFn({ method: "POST" })
     const comparative = perMonth.length >= 2;
 
     let prompt: string;
-    let summaryOut: unknown;
+    let summaryOut: Record<string, unknown>;
 
     if (comparative) {
       // Build per-category deltas across selected months (earliest -> latest)
