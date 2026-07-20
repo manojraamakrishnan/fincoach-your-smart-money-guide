@@ -212,5 +212,5 @@ ${JSON.stringify(summaryOut)}`;
       throw new Error("Failed to parse AI response");
     }
 
-    return { insights, summary: summaryOut, comparative, selected_months: selected };
+    return { insights, comparative, selected_months: selected };
   });
