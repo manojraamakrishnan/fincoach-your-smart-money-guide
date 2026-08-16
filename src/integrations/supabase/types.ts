@@ -14,6 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      goal_buckets: {
+        Row: {
+          assumed_return_rate: number
+          bucket_type: string
+          created_at: string
+          goal_id: string
+          id: string
+          split_percentage: number
+        }
+        Insert: {
+          assumed_return_rate: number
+          bucket_type: string
+          created_at?: string
+          goal_id: string
+          id?: string
+          split_percentage: number
+        }
+        Update: {
+          assumed_return_rate?: number
+          bucket_type?: string
+          created_at?: string
+          goal_id?: string
+          id?: string
+          split_percentage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_buckets_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          created_at: string
+          goal_amount: number
+          goal_name: string
+          id: string
+          step_up_rate: number
+          timeline_months: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          goal_amount: number
+          goal_name: string
+          id?: string
+          step_up_rate?: number
+          timeline_months: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          goal_amount?: number
+          goal_name?: string
+          id?: string
+          step_up_rate?: number
+          timeline_months?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number

@@ -1,12 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { LayoutDashboard, Upload, User } from "lucide-react";
+import { LayoutDashboard, Upload, User, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/upload", label: "Upload", icon: Upload },
+  { to: "/goals", label: "Goals", icon: Target },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;
+
 
 export function BottomNav() {
   return (
