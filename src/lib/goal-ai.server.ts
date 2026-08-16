@@ -1,4 +1,4 @@
-import type { BucketResult } from "./goal-math";
+import type { BucketResult, BucketType, RiskAppetite, LoanOption } from "./goal-math";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
@@ -71,32 +71,36 @@ export type NarrationInput = {
   goal_name: string;
   goal_amount: number;
   timeline_months: number;
+  risk_appetite: RiskAppetite;
   bucket_results: BucketResult[];
   total_monthly_amount: number;
+  user_chosen_split: { bucket_name: BucketType; split_percentage: number }[];
   monthly_surplus: number;
   shortfall_amount: number;
   discretionary_category: string;
+  risk_split_table: Record<RiskAppetite, { equity: number; stable: number }>;
+  loan_options: LoanOption[];
 };
 
-const NARRATION_SYSTEM = `You are generating a goal-planning summary. You will be given goal_name, goal_amount, timeline_months, bucket_results (array of bucket_name/monthly_amount/assumed_return), monthly_surplus, shortfall_amount, and discretionary_category. Output using this exact markdown structure and nothing else:
+const NARRATION_SYSTEM = `You are generating a goal-planning summary. You will be given goal_name, goal_amount, timeline_months, risk_appetite, bucket_results (array of bucket_name/monthly_amount/assumed_return), total_monthly_amount, user_chosen_split (array of bucket_name/split_percentage), monthly_surplus, shortfall_amount, discretionary_category, risk_split_table (equity vs stable % benchmark per risk_appetite tier — SIP-Equity and NPS count as "equity-type", all other buckets count as "stable"), and loan_options (array of name/rate_range/tenure). Output using this exact markdown structure and nothing else:
 
 1. One bolded headline sentence stating the total monthly investment required.
 
-2. A bullet list, one line per bucket: '- [bucket_name]: ₹[monthly_amount]/month (assumed [assumed_return]% avg return)'.
+2. A bullet list, one line per bucket: '- [bucket_name]: ₹[monthly_amount]/month (assumed [assumed_return]% historical average return)'.
 
 3. One bolded feasibility line comparing total_monthly_amount to monthly_surplus.
 
-4. IF shortfall_amount > 0: a bulleted list of exactly 3 options — extend timeline, reduce goal amount, or cut spending in [discretionary_category] — each with a one-line concrete suggestion.
+4. IF shortfall_amount > 0: a bulleted list — first 2-3 items are concrete spending-cut suggestions based on discretionary_category, and the LAST item is labeled "Last resort — funding gap via loan" listing the loan_options with a one-line warning that loan interest may exceed investment returns, so this should only be considered if spending cuts and timeline extension aren't enough.
 
-5. A maximum 2-sentence plain-text explanation of why the allocation looks the way it does, only if not obvious from the numbers.
+5. Compare user_chosen_split's equity-type percentage (sum of SIP-Equity and NPS splits) against risk_split_table's equity percentage for this risk_appetite. If they differ by more than 10 percentage points, state the difference and explain briefly (max 2-3 sentences, plain text) why a split closer to the benchmark may suit their risk_appetite and timeline better. If they're close, skip this section entirely.
 
 6. These two lines verbatim, always last:
 
-'Based on historical average returns — not guaranteed.'
+'Historical averages shown, not predictions — actual returns are not guaranteed.'
 
-'Illustrative only, not personalized investment advice. Consult a SEBI-registered advisor.'
+'Illustrative only, not personalized investment or loan advice. Consult a SEBI-registered advisor.'
 
-Do not generate, alter, or estimate any number yourself — use only the numbers provided in the input. Do not add extra commentary, caveats, or advice beyond this structure.`;
+Do not generate, alter, predict, or estimate any number yourself — use only the numbers and tables provided in the input. Do not add extra commentary, caveats, or advice beyond this structure.`;
 
 export async function narrateGoalPlan(input: NarrationInput): Promise<string> {
   return callGemini({

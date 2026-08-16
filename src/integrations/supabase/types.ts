@@ -55,6 +55,7 @@ export type Database = {
           goal_amount: number
           goal_name: string
           id: string
+          risk_appetite: string
           step_up_rate: number
           timeline_months: number
           user_id: string
@@ -64,6 +65,7 @@ export type Database = {
           goal_amount: number
           goal_name: string
           id?: string
+          risk_appetite?: string
           step_up_rate?: number
           timeline_months: number
           user_id: string
@@ -73,6 +75,7 @@ export type Database = {
           goal_amount?: number
           goal_name?: string
           id?: string
+          risk_appetite?: string
           step_up_rate?: number
           timeline_months?: number
           user_id?: string

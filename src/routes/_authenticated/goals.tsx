@@ -9,7 +9,7 @@ import { GoalMarkdown } from "@/components/GoalMarkdown";
 import { Slider } from "@/components/ui/slider";
 import { parseGoal, buildGoalPlan } from "@/lib/goals.functions";
 import { BUCKET_RETURNS } from "@/lib/goal-math";
-import type { BucketType } from "@/lib/goal-math";
+import type { BucketType, RiskAppetite } from "@/lib/goal-math";
 
 export const Route = createFileRoute("/_authenticated/goals")({
   head: () => ({
@@ -32,7 +32,18 @@ export const Route = createFileRoute("/_authenticated/goals")({
 const inr = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
-const BUCKETS: BucketType[] = ["FD", "SIP", "Gold"];
+const BUCKETS: BucketType[] = [
+  "FD",
+  "SIP-Equity",
+  "SIP-Debt",
+  "RD",
+  "Gold",
+  "PPF",
+  "NPS",
+  "Liquid Fund",
+];
+const MAX_BUCKETS = 5;
+const RISK_OPTIONS: RiskAppetite[] = ["Low", "Medium", "High"];
 
 type Goal = { goal_name: string; goal_amount: number; timeline_months: number };
 
@@ -46,9 +57,16 @@ function GoalsPage() {
   const [answer, setAnswer] = useState("");
   const [goal, setGoal] = useState<Goal | null>(null);
 
-  const [selected, setSelected] = useState<BucketType[]>(["SIP"]);
-  const [splits, setSplits] = useState<Record<BucketType, number>>({ FD: 0, SIP: 100, Gold: 0 });
+  const emptySplits = (): Record<BucketType, number> =>
+    Object.fromEntries(BUCKETS.map((b) => [b, 0])) as Record<BucketType, number>;
+
+  const [selected, setSelected] = useState<BucketType[]>(["SIP-Equity"]);
+  const [splits, setSplits] = useState<Record<BucketType, number>>({
+    ...emptySplits(),
+    "SIP-Equity": 100,
+  });
   const [stepUp, setStepUp] = useState(0);
+  const [riskAppetite, setRiskAppetite] = useState<RiskAppetite>("Medium");
 
   const totalSplit = useMemo(
     () => selected.reduce((s, b) => s + (splits[b] ?? 0), 0),
@@ -80,6 +98,7 @@ function GoalsPage() {
         data: {
           ...goal,
           step_up_rate: stepUp,
+          risk_appetite: riskAppetite,
           buckets: selected.map((b) => ({ bucket_name: b, split_percentage: splits[b] })),
         },
       });
@@ -90,10 +109,15 @@ function GoalsPage() {
 
   const toggleBucket = (b: BucketType) => {
     setSelected((prev) => {
-      const next = prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b];
+      const isRemoving = prev.includes(b);
+      if (!isRemoving && prev.length >= MAX_BUCKETS) {
+        toast.error(`You can select up to ${MAX_BUCKETS} buckets.`);
+        return prev;
+      }
+      const next = isRemoving ? prev.filter((x) => x !== b) : [...prev, b];
       if (next.length === 0) return prev;
       const even = Math.floor(100 / next.length);
-      const map: Record<BucketType, number> = { FD: 0, SIP: 0, Gold: 0 };
+      const map = emptySplits();
       next.forEach((k, i) => (map[k] = i === 0 ? 100 - even * (next.length - 1) : even));
       setSplits(map);
       return next;
@@ -131,6 +155,25 @@ function GoalsPage() {
             placeholder="₹1.2L for a bike in 18 months"
             className="w-full resize-none rounded-2xl bg-secondary/60 p-4 text-sm text-foreground outline-none ring-primary/30 placeholder:text-muted-foreground focus:ring-2"
           />
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-foreground">Risk appetite</p>
+            <div className="flex gap-2">
+              {RISK_OPTIONS.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRiskAppetite(r)}
+                  className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                    riskAppetite === r
+                      ? "bg-primary text-primary-foreground shadow-[var(--clay-primary-shadow)]"
+                      : "bg-secondary/60 text-muted-foreground"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
           {followUp && (
             <div className="space-y-2 rounded-2xl bg-accent/10 p-4">
               <p className="text-sm font-semibold text-foreground">{followUp}</p>
@@ -171,7 +214,13 @@ function GoalsPage() {
           <ClayCard className="space-y-5">
             <div>
               <h2 className="text-base font-bold text-foreground">Pick your buckets</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Splits must add up to 100%.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Pick up to {MAX_BUCKETS}. Splits must add up to 100%.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Returns shown are long-term historical averages (RBI/AMFI/MCX), not
+                predictions — actual returns are not guaranteed.
+              </p>
             </div>
 
             <div className="space-y-4">
@@ -188,7 +237,7 @@ function GoalsPage() {
                       />
                       <span className="text-sm font-semibold text-foreground">{b}</span>
                       <span className="ml-auto text-xs text-muted-foreground">
-                        {BUCKET_RETURNS[b]}% avg return
+                        {BUCKET_RETURNS[b]}% hist. avg
                       </span>
                     </label>
                     {on && (

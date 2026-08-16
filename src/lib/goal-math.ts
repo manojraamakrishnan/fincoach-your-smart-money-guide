@@ -1,12 +1,53 @@
 // Plain TS math for the Goal Planner. No AI involved here.
+// Return values are static historical averages, not predictions.
+// Sources: FD/RD — RBI historical rate data; SIP-Equity/SIP-Debt — AMFI historical
+// category averages; Gold — MCX historical average; PPF/NPS — government-notified
+// long-term averages; Liquid Fund — AMFI liquid category historical average.
 
 export const BUCKET_RETURNS: Record<BucketType, number> = {
   FD: 6.5,
-  SIP: 11,
-  Gold: 7.5,
+  "SIP-Equity": 12,
+  "SIP-Debt": 7,
+  RD: 6,
+  Gold: 8,
+  PPF: 7.1,
+  NPS: 9,
+  "Liquid Fund": 6.5,
 };
 
-export type BucketType = "FD" | "SIP" | "Gold";
+export type BucketType =
+  | "FD"
+  | "SIP-Equity"
+  | "SIP-Debt"
+  | "RD"
+  | "Gold"
+  | "PPF"
+  | "NPS"
+  | "Liquid Fund";
+
+export const EQUITY_TYPE_BUCKETS: BucketType[] = ["SIP-Equity", "NPS"];
+
+export type RiskAppetite = "High" | "Medium" | "Low";
+
+// Suggested equity-type vs stable-type % split per risk appetite. Static, not AI-generated.
+export const RISK_SPLIT_TABLE: Record<RiskAppetite, { equity: number; stable: number }> = {
+  High: { equity: 70, stable: 30 },
+  Medium: { equity: 50, stable: 50 },
+  Low: { equity: 30, stable: 70 },
+};
+
+export type LoanOption = {
+  name: string;
+  rate_range: string;
+  tenure: string;
+};
+
+// Static illustrative rates, not live/current rates. Always shown as last-resort only.
+export const LOAN_OPTIONS: LoanOption[] = [
+  { name: "Personal Loan", rate_range: "10-16% p.a.", tenure: "1-5 yr" },
+  { name: "Gold Loan", rate_range: "8-12% p.a.", tenure: "6mo-3yr" },
+  { name: "Loan Against Mutual Funds", rate_range: "9-13% p.a.", tenure: "flexible" },
+];
 
 export type BucketInput = {
   bucket_name: BucketType;

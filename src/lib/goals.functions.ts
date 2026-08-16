@@ -2,8 +2,25 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { parseGoalText, narrateGoalPlan } from "./goal-ai.server";
-import { calculatePlan, calculateFeasibility, BUCKET_RETURNS } from "./goal-math";
-import type { BucketType, FeasibilityTxn } from "./goal-math";
+import {
+  calculatePlan,
+  calculateFeasibility,
+  BUCKET_RETURNS,
+  RISK_SPLIT_TABLE,
+  LOAN_OPTIONS,
+} from "./goal-math";
+import type { BucketType, FeasibilityTxn, RiskAppetite } from "./goal-math";
+
+const BUCKET_ENUM = [
+  "FD",
+  "SIP-Equity",
+  "SIP-Debt",
+  "RD",
+  "Gold",
+  "PPF",
+  "NPS",
+  "Liquid Fund",
+] as const;
 
 export const parseGoal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -21,15 +38,16 @@ export const buildGoalPlan = createServerFn({ method: "POST" })
         goal_amount: z.number().positive(),
         timeline_months: z.number().int().positive(),
         step_up_rate: z.number().min(0).max(100),
+        risk_appetite: z.enum(["High", "Medium", "Low"]),
         buckets: z
           .array(
             z.object({
-              bucket_name: z.enum(["FD", "SIP", "Gold"]),
+              bucket_name: z.enum(BUCKET_ENUM),
               split_percentage: z.number().min(0).max(100),
             }),
           )
           .min(1)
-          .max(3),
+          .max(5),
       })
       .parse(data),
   )
@@ -68,6 +86,7 @@ export const buildGoalPlan = createServerFn({ method: "POST" })
         goal_amount: data.goal_amount,
         timeline_months: data.timeline_months,
         step_up_rate: data.step_up_rate,
+        risk_appetite: data.risk_appetite,
       })
       .select("id")
       .single();
@@ -87,11 +106,18 @@ export const buildGoalPlan = createServerFn({ method: "POST" })
       goal_name: data.goal_name,
       goal_amount: data.goal_amount,
       timeline_months: data.timeline_months,
+      risk_appetite: data.risk_appetite as RiskAppetite,
       bucket_results: plan.buckets,
       total_monthly_amount: plan.total_monthly_amount,
+      user_chosen_split: data.buckets.map((b) => ({
+        bucket_name: b.bucket_name as BucketType,
+        split_percentage: b.split_percentage,
+      })),
       monthly_surplus: feasibility.surplus_amount,
       shortfall_amount: feasibility.shortfall_amount,
       discretionary_category: feasibility.discretionary_category,
+      risk_split_table: RISK_SPLIT_TABLE,
+      loan_options: LOAN_OPTIONS,
     });
 
     return {
