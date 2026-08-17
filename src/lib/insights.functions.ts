@@ -27,7 +27,7 @@ export const generateInsights = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const lovableKey = process.env.LOVABLE_API_KEY;
+    const lovableKey = process.env["LOVABLE_API_KEY"];
     if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
 
     const { data: rows, error } = await supabase

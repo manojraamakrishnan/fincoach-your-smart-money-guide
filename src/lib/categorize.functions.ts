@@ -21,7 +21,7 @@ export const categorizeTransactions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const lovableKey = process.env.LOVABLE_API_KEY;
+    const lovableKey = process.env["LOVABLE_API_KEY"];
     if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
 
     const { data: txns, error } = await supabase
