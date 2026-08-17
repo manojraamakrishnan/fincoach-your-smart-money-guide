@@ -3,7 +3,7 @@ import type { BucketResult, BucketType, RiskAppetite, LoanOption } from "./goal-
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 async function callGemini(body: Record<string, unknown>): Promise<string> {
-  const key = process.env.LOVABLE_API_KEY;
+  const key = process.env["LOVABLE_API_KEY"];
   if (!key) throw new Error("LOVABLE_API_KEY not configured");
   const resp = await fetch(GATEWAY, {
     method: "POST",
